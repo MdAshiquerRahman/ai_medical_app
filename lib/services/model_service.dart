@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
 
@@ -67,12 +66,15 @@ class ModelService {
 
       // Get input shape from the model
       final inputShape = _interpreter!.getInputTensor(0).shape;
+      final batchSize = inputShape[0];
       final inputHeight = inputShape[1];
       final inputWidth = inputShape[2];
       final inputChannels = inputShape[3];
 
       print('Input shape: $inputShape');
-      print('Expected: [1, $inputHeight, $inputWidth, $inputChannels]');
+      print(
+        'Expected: [$batchSize, $inputHeight, $inputWidth, $inputChannels]',
+      );
 
       // Resize image to model input size
       img.Image resizedImage = img.copyResize(
@@ -81,29 +83,31 @@ class ModelService {
         height: inputHeight,
       );
 
-      // Convert to Float32List for better compatibility with TFLite
-      var inputBytes = Float32List(
-        1 * inputHeight * inputWidth * inputChannels,
+      print('Original image size: ${image.width}x${image.height}');
+      print('Resized image size: ${resizedImage.width}x${resizedImage.height}');
+
+      // Create proper nested list structure for TFLite
+      // Structure: [batch][height][width][channels]
+      var input = List.generate(
+        batchSize,
+        (b) => List.generate(
+          inputHeight,
+          (y) => List.generate(inputWidth, (x) {
+            final pixel = resizedImage.getPixel(x, y);
+            // Normalize to [0, 1] - this is what Keras models typically expect
+            return [
+              pixel.r.toDouble() / 255.0,
+              pixel.g.toDouble() / 255.0,
+              pixel.b.toDouble() / 255.0,
+            ];
+          }),
+        ),
       );
-      var pixelIndex = 0;
 
-      for (var i = 0; i < inputHeight; i++) {
-        for (var j = 0; j < inputWidth; j++) {
-          final pixel = resizedImage.getPixel(j, i);
-          // Normalize to [0, 1]
-          inputBytes[pixelIndex++] = pixel.r.toDouble() / 255.0;
-          inputBytes[pixelIndex++] = pixel.g.toDouble() / 255.0;
-          inputBytes[pixelIndex++] = pixel.b.toDouble() / 255.0;
-        }
-      }
-
-      // Reshape to [1, height, width, channels]
-      var input = inputBytes.reshape([
-        1,
-        inputHeight,
-        inputWidth,
-        inputChannels,
-      ]);
+      // Debug: print sample pixel values
+      print('Sample input values [0][0][0]: ${input[0][0][0]}');
+      print('Sample input values [0][0][1]: ${input[0][0][1]}');
+      print('Sample input values [0][1][0]: ${input[0][1][0]}');
 
       return input;
     } catch (e) {
@@ -129,47 +133,60 @@ class ModelService {
       print('Output shape: $outputShape');
       print('Output type: $outputType');
 
-      // Calculate total output size
-      int outputSize = outputShape.reduce((a, b) => a * b);
+      // Create output buffer as nested list structure
+      var output;
 
-      // Create output buffer as Float32List
-      var outputBuffer = Float32List(outputSize);
-
-      // Reshape to match output shape
-      var output = outputBuffer.reshape(outputShape);
+      if (outputShape.length == 2) {
+        // 2D: [batch, classes]
+        output = List.generate(
+          outputShape[0],
+          (i) => List.filled(outputShape[1], 0.0),
+        );
+      } else if (outputShape.length == 1) {
+        // 1D: [classes]
+        output = List.filled(outputShape[0], 0.0);
+      } else {
+        throw Exception('Unsupported output shape: $outputShape');
+      }
 
       print('Running inference...');
+      print('Input tensor type: ${_interpreter!.getInputTensor(0).type}');
+      print('Output tensor type: ${_interpreter!.getOutputTensor(0).type}');
 
       // Run inference
       _interpreter!.run(input, output);
 
       print('Inference completed successfully');
+      print('Output after inference: $output');
 
       // Process results based on output shape
       List<double> results;
 
       print('Processing output with shape: $outputShape');
-      print('Output buffer size: ${outputBuffer.length}');
 
       if (outputShape.length == 2) {
         // 2D output: [batch, classes]
+        final batchSize = outputShape[0];
         final numClasses = outputShape[1];
-        results = outputBuffer.sublist(0, numClasses);
-        print('Extracted 2D results: $numClasses classes');
-      } else if (outputShape.length == 4) {
-        // 4D output: [batch, height, width, classes]
-        // Take the last dimension as class probabilities
-        final numClasses = outputShape[3];
-        results = outputBuffer.sublist(0, numClasses);
-        print('Extracted 4D results: $numClasses classes');
+
+        print('Batch size: $batchSize, Num classes: $numClasses');
+
+        // Take the first batch's results
+        results = List<double>.from(output[0]);
+        print('Extracted 2D results from batch 0: $results');
+
+        // Also print second batch for comparison (if exists)
+        if (batchSize > 1) {
+          print('Batch 1 results (for verification): ${output[1]}');
+        }
       } else if (outputShape.length == 1) {
         // 1D output: [classes]
-        results = List<double>.from(outputBuffer);
+        results = List<double>.from(output);
         print('Extracted 1D results: ${results.length} classes');
       } else {
-        // Default: assume the buffer contains class probabilities
-        print('Unknown output shape, using full buffer');
-        results = List<double>.from(outputBuffer);
+        throw Exception(
+          'Unsupported output shape for processing: $outputShape',
+        );
       }
 
       print('Results: $results');
@@ -227,13 +244,13 @@ class ModelService {
   String _getClassLabel(int index) {
     switch (_currentModelType) {
       case ModelType.mri:
-        // Example MRI classes - adjust based on your model
-        const mriClasses = ['Normal', 'Tumor', 'Abnormality'];
+        // MRI classes based on the trained model
+        const mriClasses = ['glioma', 'meningioma', 'notumor', 'pituitary'];
         return index < mriClasses.length ? mriClasses[index] : 'Class $index';
 
       case ModelType.chestXRay:
-        // Example X-Ray classes - adjust based on your model
-        const xrayClasses = ['Normal', 'Pneumonia', 'COVID-19', 'Tuberculosis'];
+        // Chest X-Ray classes based on the trained model
+        const xrayClasses = ['COVID19', 'NORMAL', 'PNEUMONIA', 'TURBERCULOSIS'];
         return index < xrayClasses.length ? xrayClasses[index] : 'Class $index';
 
       case ModelType.chestCTScan:
