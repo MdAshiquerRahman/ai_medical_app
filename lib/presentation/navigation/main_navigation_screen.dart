@@ -12,7 +12,7 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [HomeScreen(), HistoryScreen()];
+  final List<Widget> _screens = [const HomeScreen(), const HistoryScreen()];
 
   void _onTabTapped(int index) {
     setState(() {
@@ -23,9 +23,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
-      extendBody: true,
-      bottomNavigationBar: _buildFloatingNavigationBar(context),
+      body: Stack(
+        children: [
+          // Main content - IndexedStack keeps all screens alive
+          IndexedStack(index: _currentIndex, children: _screens),
+          // Floating tab bar
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildFloatingNavigationBar(context),
+          ),
+        ],
+      ),
     );
   }
 

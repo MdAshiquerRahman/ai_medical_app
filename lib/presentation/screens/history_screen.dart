@@ -10,8 +10,10 @@ class HistoryScreen extends StatelessWidget {
         title: const Text('Report History'),
         automaticallyImplyLeading: false,
       ),
-      body: Center(
-        child: Column(
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: 80),
+        child: Center(
+          child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
@@ -39,6 +41,7 @@ class HistoryScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
