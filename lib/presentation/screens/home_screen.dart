@@ -1,318 +1,199 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/scan_type.dart';
-import 'package:ai_medical_app/features/scan_analysis/domain/entities/diagnosis_result.dart';
-import 'package:ai_medical_app/common/errors/result.dart';
-import 'package:ai_medical_app/features/scan_analysis/data/repositories/ml_model_repository_impl.dart';
-import 'package:ai_medical_app/features/scan_analysis/domain/repositories/ml_model_repository.dart';
-import 'package:ai_medical_app/features/scan_analysis/data/services/image_picker_service.dart';
-import 'package:ai_medical_app/presentation/widgets/model_selector.dart';
-import 'package:ai_medical_app/presentation/widgets/image_preview.dart';
-import 'package:ai_medical_app/presentation/widgets/prediction_result.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  final MLModelRepository _modelRepository = MLModelRepositoryImpl();
-  final ImagePickerService _imagePickerService = ImagePickerService();
-
-  ScanType? _selectedScanType;
-  File? _selectedImage;
-  DiagnosisResult? _diagnosisResult;
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  @override
-  void dispose() {
-    _modelRepository.disposeCurrentModel();
-    super.dispose();
-  }
-
-  // Handle model selection
-  Future<void> _onScanTypeSelected(ScanType scanType) async {
-    setState(() {
-      _selectedScanType = scanType;
-      _selectedImage = null;
-      _diagnosisResult = null;
-      _errorMessage = null;
-      _isLoading = true;
-    });
-
-    final result = await _modelRepository.loadModel(scanType);
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      switch (result) {
-        case Success():
-          _showSnackBar('Model "${scanType.displayName}" loaded successfully!');
-        case Failure(:final message):
-          setState(() {
-            _errorMessage = message;
-          });
-          _showSnackBar('Error: $message', isError: true);
-      }
-    }
-  }
-
-  // Pick image from gallery
-  Future<void> _pickImageFromGallery() async {
-    if (_selectedScanType == null) {
-      _showSnackBar('Please select a scan type first!', isError: true);
-      return;
-    }
-
-    try {
-      final image = await _imagePickerService.pickImageFromGallery();
-      if (image != null) {
-        setState(() {
-          _selectedImage = image;
-          _diagnosisResult = null;
-          _errorMessage = null;
-        });
-      }
-    } catch (e) {
-      _showSnackBar('Error picking image: $e', isError: true);
-    }
-  }
-
-  // Pick image from camera
-  Future<void> _pickImageFromCamera() async {
-    if (_selectedScanType == null) {
-      _showSnackBar('Please select a scan type first!', isError: true);
-      return;
-    }
-
-    try {
-      final image = await _imagePickerService.pickImageFromCamera();
-      if (image != null) {
-        setState(() {
-          _selectedImage = image;
-          _diagnosisResult = null;
-          _errorMessage = null;
-        });
-      }
-    } catch (e) {
-      if (e is UnsupportedError) {
-        _showSnackBar(
-          'Camera is not available on this platform',
-          isError: true,
-        );
-      } else {
-        _showSnackBar('Error picking image: $e', isError: true);
-      }
-    }
-  }
-
-  // Run prediction
-  Future<void> _runPrediction() async {
-    if (_selectedScanType == null) {
-      _showSnackBar('Please select a scan type first!', isError: true);
-      return;
-    }
-
-    if (_selectedImage == null) {
-      _showSnackBar('Please select an image first!', isError: true);
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    final result = await _modelRepository.analyzeImage(_selectedImage!);
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      switch (result) {
-        case Success(:final data):
-          setState(() {
-            _diagnosisResult = data;
-          });
-        case Failure(:final message):
-          setState(() {
-            _errorMessage = message;
-          });
-          _showSnackBar('Error: $message', isError: true);
-      }
-    }
-  }
-
-  // Show snackbar message
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  // Clear all selections
-  void _clearAll() {
-    setState(() {
-      _selectedImage = null;
-      _diagnosisResult = null;
-      _errorMessage = null;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('AI Medical Diagnosis'),
-        centerTitle: true,
-        elevation: 2,
-        actions: [
-          if (_selectedImage != null || _diagnosisResult != null)
-            IconButton(
-              icon: const Icon(Icons.clear_all),
-              tooltip: 'Clear',
-              onPressed: _clearAll,
-            ),
-        ],
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Model Selector
-              ModelSelector(
-                selectedScanType: _selectedScanType,
-                onScanTypeSelected: _onScanTypeSelected,
-                isEnabled: !_isLoading,
+              Text(
+                'Select Scan Type',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
               ),
-
-              const SizedBox(height: 24),
-
-              // Image Picker Buttons
-              if (_selectedScanType != null) ...[
-                Text(
-                  'Step 2: Upload Image',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _pickImageFromGallery,
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Gallery'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                      ),
+              const SizedBox(height: 12),
+              Text(
+                'Choose the type of medical scan you want to analyze',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.white70,
                     ),
-                    if (_imagePickerService.isCameraAvailable) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _pickImageFromCamera,
-                          icon: const Icon(Icons.camera_alt),
-                          label: const Text('Camera'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 24),
-              ],
-
-              // Image Preview
-              if (_selectedImage != null) ...[
-                ImagePreview(imageFile: _selectedImage!),
-                const SizedBox(height: 24),
-
-                // Analyze Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _runPrediction,
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          )
-                        : const Icon(Icons.analytics),
-                    label: Text(
-                      _isLoading ? 'Analyzing...' : 'Analyze Image',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-
-              // Loading Indicator
-              if (_isLoading && _selectedImage == null)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-
-              // Error Message
-              if (_errorMessage != null)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline, color: Colors.red.shade700),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: TextStyle(color: Colors.red.shade700),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Prediction Result
-              if (_diagnosisResult != null)
-                PredictionResult(result: _diagnosisResult!),
+              ),
+              const SizedBox(height: 32),
+              _ScanTypeCard(
+                title: 'Chest X-Ray',
+                description: 'Detect respiratory conditions from X-Ray images',
+                icon: Icons.medical_services,
+                scanType: ScanType.chestXRay,
+                onTap: () => _navigateToAnalysis(context, ScanType.chestXRay),
+              ),
+              const SizedBox(height: 16),
+              _ScanTypeCard(
+                title: 'Chest CT Scan',
+                description: 'Analyze chest CT scans for pathologies',
+                icon: Icons.monitor_heart,
+                scanType: ScanType.chestCTScan,
+                onTap: () => _navigateToAnalysis(context, ScanType.chestCTScan),
+              ),
+              const SizedBox(height: 16),
+              _ScanTypeCard(
+                title: 'MRI Scan',
+                description: 'Analyze MRI brain scans for abnormalities',
+                icon: Icons.psychology,
+                scanType: ScanType.mri,
+                onTap: () => _navigateToAnalysis(context, ScanType.mri),
+              ),
+              const SizedBox(height: 16),
+              _ScanTypeCard(
+                title: 'Skin Lesion',
+                description: 'Classify skin lesions and conditions',
+                icon: Icons.face_retouching_natural,
+                scanType: ScanType.skinLesion,
+                onTap: () => _navigateToAnalysis(context, ScanType.skinLesion),
+              ),
+              const SizedBox(height: 32),
+              _MedicalDisclaimerCard(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToAnalysis(BuildContext context, ScanType scanType) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Selected: ${scanType.displayName}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+class _ScanTypeCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final IconData icon;
+  final ScanType scanType;
+  final VoidCallback onTap;
+
+  const _ScanTypeCard({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.scanType,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 32,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style:
+                          Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white70,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Theme.of(context).primaryColor,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MedicalDisclaimerCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Theme.of(context).primaryColor,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Medical Disclaimer',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'This app is for informational purposes only and should not be used as a substitute for professional medical diagnosis. Always consult with a qualified healthcare provider.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white70,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
