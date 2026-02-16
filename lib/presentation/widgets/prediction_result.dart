@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:ai_medical_app/features/scan_analysis/domain/entities/diagnosis_result.dart';
 
 class PredictionResult extends StatelessWidget {
-  final Map<String, dynamic> result;
+  final DiagnosisResult result;
 
   const PredictionResult({super.key, required this.result});
 
   @override
   Widget build(BuildContext context) {
-    final predictedClass = result['predictedClass'] as String;
-    final confidence = result['confidence'] as String;
-    final allProbabilities = result['allProbabilities'] as Map<String, String>;
-
     return Card(
       elevation: 4,
       color: Colors.green.shade50,
@@ -60,7 +57,7 @@ class PredictionResult extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    predictedClass,
+                    result.predictedClass,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -78,7 +75,7 @@ class PredictionResult extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '$confidence%',
+                        '${result.confidencePercentage}%',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -89,12 +86,20 @@ class PredictionResult extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
-                    value: double.parse(confidence) / 100,
+                    value: result.confidence,
                     backgroundColor: Colors.grey.shade200,
                     valueColor: AlwaysStoppedAnimation<Color>(
                       Colors.green.shade600,
                     ),
                     minHeight: 8,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Processing Time: ${result.processingTime.inMilliseconds}ms',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               ),
@@ -111,8 +116,7 @@ class PredictionResult extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            ...allProbabilities.entries.map((entry) {
-              final probability = double.parse(entry.value);
+            ...result.allProbabilities.entries.map((entry) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12.0),
                 child: Column(
@@ -131,7 +135,7 @@ class PredictionResult extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${entry.value}%',
+                          '${(entry.value * 100).toStringAsFixed(1)}%',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -142,10 +146,10 @@ class PredictionResult extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     LinearProgressIndicator(
-                      value: probability / 100,
+                      value: entry.value,
                       backgroundColor: Colors.grey.shade200,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        probability > 50
+                        entry.value > 0.5
                             ? Colors.green.shade400
                             : Colors.blue.shade300,
                       ),
