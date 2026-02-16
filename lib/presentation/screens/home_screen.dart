@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/scan_type.dart';
+import 'package:ai_medical_app/presentation/screens/camera_preview_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,11 +27,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onSelectImage() {
     if (_selectedScanType != null) {
-      // TODO: Navigate to camera preview screen
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Opening camera for ${_selectedScanType!.displayName}'),
-          duration: const Duration(seconds: 2),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              CameraPreviewScreen(scanType: _selectedScanType!),
         ),
       );
     }
