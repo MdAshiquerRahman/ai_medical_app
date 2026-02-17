@@ -1,9 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/scan_type.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/diagnosis_result.dart';
 import 'package:ai_medical_app/features/patient_info/domain/entities/patient_info.dart';
 import 'package:ai_medical_app/features/health_report/domain/entities/health_report.dart';
+import 'package:ai_medical_app/features/report_storage/domain/entities/saved_report.dart';
+import 'package:ai_medical_app/features/report_storage/data/repositories/report_storage_repository_impl.dart';
+import 'package:ai_medical_app/features/report_storage/data/services/pdf_service_impl.dart';
+import 'package:ai_medical_app/common/errors/result.dart';
 
 class ResultScreen extends StatefulWidget {
   final File imageFile;
@@ -26,6 +31,14 @@ class ResultScreen extends StatefulWidget {
 }
 
 class _ResultScreenState extends State<ResultScreen> {
+  final _repository = ReportStorageRepositoryImpl();
+  final _pdfService = PdfServiceImpl();
+  final _uuid = const Uuid();
+
+  bool _isSaving = false;
+  bool _isSharing = false;
+  String? _savedReportId;
+
   String _getSeverity() {
     final confidence = widget.diagnosisResult.confidence;
     final predictedClass = widget.diagnosisResult.predictedClass.toLowerCase();
@@ -128,6 +141,145 @@ class _ResultScreenState extends State<ResultScreen> {
     }
   }
 
+  SavedReport _createSavedReport() {
+    return SavedReport(
+      id: _savedReportId ?? _uuid.v4(),
+      imagePath: widget.imageFile.path,
+      scanType: widget.scanType,
+      diagnosisResult: widget.diagnosisResult,
+      patientInfo: widget.patientInfo ?? _getDefaultPatientInfo(),
+      healthReport: widget.healthReport,
+      timestamp: DateTime.now(),
+    );
+  }
+
+  PatientInfo _getDefaultPatientInfo() {
+    return const PatientInfo(
+      age: 0,
+      gender: 'Not specified',
+      weight: 0,
+      weightUnit: 'kg',
+      height: 0,
+      heightUnit: 'cm',
+      symptoms: 'Not provided',
+      city: 'Unknown',
+      country: 'Unknown',
+    );
+  }
+
+  Future<void> _saveToHistory() async {
+    if (_isSaving) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final report = _createSavedReport();
+      final result = await _repository.saveReport(report);
+
+      if (!mounted) return;
+
+      switch (result) {
+        case Success(:final data):
+          _savedReportId = data;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Report saved to history successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Navigate back to home
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            Navigator.popUntil(context, (route) => route.isFirst);
+          }
+        case Failure(:final message):
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to save: $message'),
+              backgroundColor: Colors.red,
+            ),
+          );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _sharePdf() async {
+    if (_isSharing) return;
+
+    setState(() {
+      _isSharing = true;
+    });
+
+    try {
+      final report = _createSavedReport();
+
+      // Generate PDF
+      debugPrint('🔄 Generating PDF for report: ${report.id}');
+      final pdfResult = await _pdfService.generatePdf(report);
+
+      if (!mounted) return;
+
+      switch (pdfResult) {
+        case Success(:final data):
+          debugPrint('✅ PDF generated, starting share...');
+          // Share PDF
+          final shareResult = await _pdfService.sharePdf(
+            data,
+            widget.diagnosisResult.predictedClass,
+          );
+
+          if (!mounted) return;
+
+          switch (shareResult) {
+            case Success():
+              debugPrint('✅ Share dialog opened');
+            // Don't show snackbar as share sheet is open
+            case Failure(:final message):
+              debugPrint('❌ Share failed: $message');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to share: $message'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+          }
+        case Failure(:final message):
+          debugPrint('❌ PDF generation failed: $message');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to generate PDF: $message'),
+              backgroundColor: Colors.red,
+            ),
+          );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Unexpected error in _sharePdf: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unexpected error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharing = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,27 +287,37 @@ class _ResultScreenState extends State<ResultScreen> {
       appBar: AppBar(
         title: const Text('Analysis Results'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () {
-              // TODO: Implement share functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Share feature coming soon')),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: () {
-              // TODO: Implement download functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Download feature coming soon')),
-              );
-            },
+          if (_isSharing)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Share as PDF',
+              onPressed: _sharePdf,
+            ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          _buildResultsView(),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildBottomButtons(),
           ),
         ],
       ),
-      body: _buildResultsView(),
     );
   }
 
@@ -168,6 +330,7 @@ class _ResultScreenState extends State<ResultScreen> {
     final recommendations = _getRecommendations();
 
     return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -302,54 +465,73 @@ class _ResultScreenState extends State<ResultScreen> {
                 widget.healthReport != null
                     ? _buildAIDisclaimer(widget.healthReport!.disclaimer)
                     : _buildDisclaimer(),
-
-                const SizedBox(height: 20),
-
-                // Action buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.popUntil(context, (route) => route.isFirst);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white54),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text('New Scan'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: Navigate to history
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Saved to history'),
-                              backgroundColor: Color(0xFFDC143C),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFDC143C),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text('Save'),
-                      ),
-                    ),
-                  ],
-                ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomButtons() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: _isSaving
+                  ? null
+                  : () {
+                      Navigator.popUntil(context, (route) => route.isFirst);
+                    },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white54),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                disabledForegroundColor: Colors.white38,
+              ),
+              child: const Text('New Scan'),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _saveToHistory,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC143C),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                disabledBackgroundColor: const Color(
+                  0xFFDC143C,
+                ).withOpacity(0.5),
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Save'),
             ),
           ),
         ],
@@ -1042,9 +1224,12 @@ class _ResultScreenState extends State<ResultScreen> {
               children: [
                 const Icon(Icons.phone, color: Colors.white54, size: 16),
                 const SizedBox(width: 4),
-                Text(
-                  facility.phone,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                Expanded(
+                  child: Text(
+                    facility.phone,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

@@ -123,11 +123,7 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen>
   void _disposeCamera() {
     _cameraController?.dispose();
     _cameraController = null;
-    if (mounted) {
-      setState(() {
-        _isCameraInitialized = false;
-      });
-    }
+    _isCameraInitialized = false;
   }
 
   Future<void> _toggleFlash() async {
