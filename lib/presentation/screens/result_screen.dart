@@ -2,17 +2,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/scan_type.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/diagnosis_result.dart';
+import 'package:ai_medical_app/features/patient_info/domain/entities/patient_info.dart';
 
 class ResultScreen extends StatefulWidget {
   final File imageFile;
   final ScanType scanType;
   final DiagnosisResult diagnosisResult;
+  final PatientInfo? patientInfo;
 
   const ResultScreen({
     super.key,
     required this.imageFile,
     required this.scanType,
     required this.diagnosisResult,
+    this.patientInfo,
   });
 
   @override
@@ -269,6 +272,12 @@ class _ResultScreenState extends State<ResultScreen> {
 
                 const SizedBox(height: 20),
 
+                // Patient Demographics section (if available)
+                if (widget.patientInfo != null) ...[
+                  _buildPatientDemographics(),
+                  const SizedBox(height: 20),
+                ],
+
                 // Findings section
                 _buildSection('Findings', Icons.assignment, findings),
 
@@ -406,6 +415,117 @@ class _ResultScreenState extends State<ResultScreen> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPatientDemographics() {
+    final patient = widget.patientInfo!;
+    final demographics = <String>[
+      'Age: ${patient.age} years',
+      'Gender: ${patient.gender}',
+      'Weight: ${patient.weightDisplay}',
+      'Height: ${patient.heightDisplay}',
+      'Location: ${patient.location}',
+      '',
+      'Reported Symptoms:',
+      patient.symptoms,
+    ];
+
+    if (patient.systolicBP != null || patient.diastolicBP != null) {
+      demographics.add('');
+      demographics.add('Vital Signs:');
+      if (patient.systolicBP != null && patient.diastolicBP != null) {
+        demographics.add(
+          'Blood Pressure: ${patient.systolicBP}/${patient.diastolicBP} mmHg',
+        );
+      }
+    }
+
+    if (patient.temperature != null) {
+      demographics.add('Temperature: ${patient.temperatureDisplay}');
+    }
+
+    if (patient.heartRate != null) {
+      demographics.add('Heart Rate: ${patient.heartRate} bpm');
+    }
+
+    if (patient.medicalHistory != null && patient.medicalHistory!.isNotEmpty) {
+      demographics.add('');
+      demographics.add('Medical History:');
+      demographics.add(patient.medicalHistory!);
+    }
+
+    if (patient.allergies != null && patient.allergies!.isNotEmpty) {
+      demographics.add('');
+      demographics.add('Known Allergies:');
+      demographics.add(patient.allergies!);
+    }
+
+    if (patient.currentMedications != null &&
+        patient.currentMedications!.isNotEmpty) {
+      demographics.add('');
+      demographics.add('Current Medications:');
+      demographics.add(patient.currentMedications!);
+    }
+
+    return Card(
+      color: const Color(0xFF2C2C2C),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4CAF50).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    color: Color(0xFF4CAF50),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Patient Information',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...demographics.map((item) {
+              final isHeader = item.endsWith(':') && !item.startsWith(' ');
+              final isEmpty = item.trim().isEmpty;
+
+              if (isEmpty) {
+                return const SizedBox(height: 8);
+              }
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Text(
+                  item,
+                  style: TextStyle(
+                    color: isHeader ? Colors.white : const Color(0xFFB0B0B0),
+                    fontSize: isHeader ? 14 : 13,
+                    fontWeight: isHeader ? FontWeight.w600 : FontWeight.normal,
+                    height: 1.5,
+                  ),
+                ),
+              );
+            }).toList(),
           ],
         ),
       ),

@@ -7,7 +7,7 @@ import 'package:ai_medical_app/features/scan_analysis/domain/entities/scan_type.
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/diagnosis_result.dart';
 import 'package:ai_medical_app/features/scan_analysis/data/services/model_service_factory.dart';
 import 'package:ai_medical_app/common/errors/result.dart';
-import 'package:ai_medical_app/presentation/screens/result_screen.dart';
+import 'package:ai_medical_app/presentation/screens/patient_info_form_screen.dart';
 
 class ImageCropScreen extends StatefulWidget {
   final File imageFile;
@@ -315,7 +315,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ResultScreen(
+            builder: (context) => PatientInfoFormScreen(
               imageFile: croppedFile,
               scanType: widget.scanType,
               diagnosisResult: diagnosisResult,
