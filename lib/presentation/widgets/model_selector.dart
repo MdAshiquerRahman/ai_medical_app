@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:ai_medical_app/services/model_service.dart';
+import 'package:ai_medical_app/features/scan_analysis/domain/entities/scan_type.dart';
 
 class ModelSelector extends StatelessWidget {
-  final ModelType? selectedModelType;
-  final Function(ModelType) onModelSelected;
+  final ScanType? selectedScanType;
+  final Function(ScanType) onScanTypeSelected;
   final bool isEnabled;
 
   const ModelSelector({
     super.key,
-    required this.selectedModelType,
-    required this.onModelSelected,
+    required this.selectedScanType,
+    required this.onScanTypeSelected,
     this.isEnabled = true,
   });
 
@@ -23,28 +23,28 @@ class ModelSelector extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Step 1: Select Model Type',
+              'Step 1: Select Scan Type',
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            ...ModelType.values.map((modelType) {
-              return RadioListTile<ModelType>(
+            ...ScanType.values.map((scanType) {
+              return RadioListTile<ScanType>(
                 title: Text(
-                  modelType.displayName,
+                  scanType.displayName,
                   style: const TextStyle(fontSize: 16),
                 ),
                 subtitle: Text(
-                  _getModelDescription(modelType),
+                  scanType.description,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
-                value: modelType,
-                groupValue: selectedModelType,
+                value: scanType,
+                groupValue: selectedScanType,
                 onChanged: isEnabled
-                    ? (ModelType? value) {
+                    ? (ScanType? value) {
                         if (value != null) {
-                          onModelSelected(value);
+                          onScanTypeSelected(value);
                         }
                       }
                     : null,
@@ -55,18 +55,5 @@ class ModelSelector extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _getModelDescription(ModelType modelType) {
-    switch (modelType) {
-      case ModelType.mri:
-        return 'Analyze MRI brain scans for abnormalities';
-      case ModelType.chestXRay:
-        return 'Detect respiratory conditions from X-Ray images';
-      case ModelType.chestCTScan:
-        return 'Analyze chest CT scans for pathologies';
-      case ModelType.skin:
-        return 'Classify skin lesions and conditions';
-    }
   }
 }
