@@ -49,6 +49,10 @@ dependencies:
   # Image processing
   image: ^4.1.7
   path_provider: ^2.1.1
+  
+  # AI Integration
+  google_generative_ai: ^0.4.0
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -74,6 +78,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - .env
     - assets/ml_models/mri_cnn.tflite
     - assets/ml_models/Chest_X_Ray.tflite
     - assets/ml_models/Chest_CT_Scan.tflite

@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/scan_type.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/diagnosis_result.dart';
 import 'package:ai_medical_app/features/patient_info/domain/entities/patient_info.dart';
+import 'package:ai_medical_app/features/health_report/domain/entities/health_report.dart';
 
 class ResultScreen extends StatefulWidget {
   final File imageFile;
   final ScanType scanType;
   final DiagnosisResult diagnosisResult;
   final PatientInfo? patientInfo;
+  final HealthReport? healthReport;
 
   const ResultScreen({
     super.key,
@@ -16,6 +18,7 @@ class ResultScreen extends StatefulWidget {
     required this.scanType,
     required this.diagnosisResult,
     this.patientInfo,
+    this.healthReport,
   });
 
   @override

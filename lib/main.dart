@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ai_medical_app/common/theme/app_theme.dart';
 import 'package:ai_medical_app/presentation/navigation/main_navigation_screen.dart';
 
-void main() {
+Future<void> main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables from .env file
+  await dotenv.load(fileName: '.env');
+
   runApp(const MyApp());
 }
 

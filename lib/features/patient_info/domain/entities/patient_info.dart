@@ -66,6 +66,14 @@ class PatientInfo {
   // Get full location
   String get location => '$city, $country';
 
+  // Check if vital signs are available
+  bool get hasVitals {
+    return systolicBP != null ||
+        diastolicBP != null ||
+        temperature != null ||
+        heartRate != null;
+  }
+
   // Check if optional fields are filled
   bool get hasOptionalInfo {
     return systolicBP != null ||

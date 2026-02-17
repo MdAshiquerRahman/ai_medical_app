@@ -1,10 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/scan_type.dart';
 import 'package:ai_medical_app/features/scan_analysis/domain/entities/diagnosis_result.dart';
 import 'package:ai_medical_app/features/patient_info/domain/entities/patient_info.dart';
 import 'package:ai_medical_app/features/patient_info/data/validators/patient_form_validator.dart';
+import 'package:ai_medical_app/features/health_report/domain/entities/health_report.dart';
+import 'package:ai_medical_app/features/health_report/domain/repositories/health_report_repository.dart';
+import 'package:ai_medical_app/features/health_report/data/repositories/health_report_repository_impl.dart';
+import 'package:ai_medical_app/features/health_report/data/services/gemini_ai_service.dart';
+import 'package:ai_medical_app/common/errors/result.dart';
 import 'package:ai_medical_app/presentation/widgets/patient_form/diagnosis_display_card.dart';
 import 'package:ai_medical_app/presentation/widgets/patient_form/form_text_field.dart';
 import 'package:ai_medical_app/presentation/widgets/patient_form/unit_toggle_button.dart';
@@ -30,6 +36,20 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _showOptionalFields = false;
   bool _isSubmitting = false;
+
+  // Health report repository
+  late final HealthReportRepository _healthReportRepository;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize health report repository with Gemini service
+    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+    final geminiService = GeminiAIService(apiKey: apiKey);
+    _healthReportRepository = HealthReportRepositoryImpl(
+      aiService: geminiService,
+    );
+  }
 
   // Required field controllers
   final _ageController = TextEditingController();
@@ -120,10 +140,17 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
             : _medicationsController.text.trim(),
       );
 
-      // Simulate processing time
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Generate health report using Gemini AI
+      final reportResult = await _healthReportRepository.generateReport(
+        diagnosis: widget.diagnosisResult,
+        patientInfo: patientInfo,
+      );
 
-      if (mounted) {
+      if (!mounted) return;
+
+      // Handle the result
+      if (reportResult is Success<HealthReport>) {
+        // Success: Navigate to result screen with health report
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -132,9 +159,33 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
               scanType: widget.scanType,
               diagnosisResult: widget.diagnosisResult,
               patientInfo: patientInfo,
+              healthReport: reportResult.data,
             ),
           ),
         );
+      } else if (reportResult is Failure<HealthReport>) {
+        // Failure: Show error and optionally navigate without report
+        setState(() => _isSubmitting = false);
+
+        final shouldContinue = await _showErrorDialog(
+          'Failed to Generate Report',
+          reportResult.message,
+        );
+
+        if (shouldContinue && mounted) {
+          // Continue to result screen without AI report
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ResultScreen(
+                imageFile: widget.imageFile,
+                scanType: widget.scanType,
+                diagnosisResult: widget.diagnosisResult,
+                patientInfo: patientInfo,
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       setState(() => _isSubmitting = false);
@@ -147,6 +198,32 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
         );
       }
     }
+  }
+
+  Future<bool> _showErrorDialog(String title, String message) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text(title),
+              content: Text(
+                '$message\n\nWould you like to continue without the AI health report?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Continue'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   void _clearForm() {
