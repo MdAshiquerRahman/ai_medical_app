@@ -16,6 +16,7 @@ class ResultScreen extends StatefulWidget {
   final DiagnosisResult diagnosisResult;
   final PatientInfo? patientInfo;
   final HealthReport? healthReport;
+  final bool showActionButtons;
 
   const ResultScreen({
     super.key,
@@ -24,6 +25,7 @@ class ResultScreen extends StatefulWidget {
     required this.diagnosisResult,
     this.patientInfo,
     this.healthReport,
+    this.showActionButtons = true,
   });
 
   @override
@@ -310,12 +312,13 @@ class _ResultScreenState extends State<ResultScreen> {
       body: Stack(
         children: [
           _buildResultsView(),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomButtons(),
-          ),
+          if (widget.showActionButtons)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildBottomButtons(),
+            ),
         ],
       ),
     );
@@ -330,7 +333,7 @@ class _ResultScreenState extends State<ResultScreen> {
     final recommendations = _getRecommendations();
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 100),
+      padding: EdgeInsets.only(bottom: widget.showActionButtons ? 100 : 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
