@@ -161,8 +161,9 @@ class _ResultScreenState extends State<ResultScreen> {
 
   Widget _buildResultsView() {
     final diagnosisResult = widget.diagnosisResult;
-    final severity = _getSeverity();
-    final severityColor = _getSeverityColor(severity);
+    final severity = widget.healthReport?.severity.label ?? _getSeverity();
+    final severityColor =
+        widget.healthReport?.severity.color ?? _getSeverityColor(severity);
     final findings = _getFindings();
     final recommendations = _getRecommendations();
 
@@ -281,22 +282,26 @@ class _ResultScreenState extends State<ResultScreen> {
                   const SizedBox(height: 20),
                 ],
 
-                // Findings section
-                _buildSection('Findings', Icons.assignment, findings),
-
-                const SizedBox(height: 20),
-
-                // Recommendations section
-                _buildSection(
-                  'Recommendations',
-                  Icons.lightbulb_outline,
-                  recommendations,
-                ),
-
-                const SizedBox(height: 20),
+                // Health Report sections (if available) or fallback to simple sections
+                if (widget.healthReport != null) ...[
+                  _buildHealthReportSections(),
+                ] else ...[
+                  // Findings section (fallback)
+                  _buildSection('Findings', Icons.assignment, findings),
+                  const SizedBox(height: 20),
+                  // Recommendations section (fallback)
+                  _buildSection(
+                    'Recommendations',
+                    Icons.lightbulb_outline,
+                    recommendations,
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 // Disclaimer
-                _buildDisclaimer(),
+                widget.healthReport != null
+                    ? _buildAIDisclaimer(widget.healthReport!.disclaimer)
+                    : _buildDisclaimer(),
 
                 const SizedBox(height: 20),
 
@@ -529,6 +534,585 @@ class _ResultScreenState extends State<ResultScreen> {
                 ),
               );
             }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHealthReportSections() {
+    final report = widget.healthReport!;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Condition Analysis Section
+        _buildExpandableSection(
+          title: 'Condition Analysis',
+          icon: Icons.medical_information,
+          iconColor: const Color(0xFF2196F3),
+          children: [
+            _buildInfoRow('Condition', report.conditionName, bold: true),
+            const SizedBox(height: 8),
+            _buildInfoRow(
+              'Severity',
+              report.severity.label,
+              labelColor: report.severity.color,
+            ),
+            const SizedBox(height: 12),
+            _buildSubSection('Description', [report.conditionDescription]),
+            if (report.severityExplanation.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSubSection('Severity Explanation', [
+                report.severityExplanation,
+              ]),
+            ],
+            if (report.causes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSubSection('Possible Causes', report.causes),
+            ],
+            if (report.progression.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSubSection('Progression', [report.progression]),
+            ],
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // Treatment Guidelines Section
+        if (report.medications.isNotEmpty ||
+            report.treatmentSteps.isNotEmpty ||
+            report.homeCare.isNotEmpty)
+          _buildExpandableSection(
+            title: 'Treatment Guidelines',
+            icon: Icons.healing,
+            iconColor: const Color(0xFF4CAF50),
+            children: [
+              if (report.medications.isNotEmpty) ...[
+                _buildSubSection('Recommended Medications', []),
+                const SizedBox(height: 8),
+                ...report.medications.map((med) => _buildMedicationCard(med)),
+                const SizedBox(height: 12),
+                _buildMedicationDisclaimer(),
+                const SizedBox(height: 12),
+              ],
+              if (report.treatmentSteps.isNotEmpty) ...[
+                _buildSubSection('Treatment Steps', report.treatmentSteps),
+                const SizedBox(height: 12),
+              ],
+              if (report.homeCare.isNotEmpty)
+                _buildSubSection('Home Care', report.homeCare),
+            ],
+          ),
+
+        const SizedBox(height: 16),
+
+        // Lifestyle Recommendations Section
+        if (report.lifestyleModifications.isNotEmpty ||
+            report.dietRecommendations.isNotEmpty ||
+            report.exerciseGuidelines.isNotEmpty ||
+            report.restAdvice.isNotEmpty)
+          _buildExpandableSection(
+            title: 'Lifestyle Recommendations',
+            icon: Icons.favorite,
+            iconColor: const Color(0xFFFF9800),
+            children: [
+              if (report.lifestyleModifications.isNotEmpty) ...[
+                _buildSubSection(
+                  'Lifestyle Modifications',
+                  report.lifestyleModifications,
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (report.dietRecommendations.isNotEmpty) ...[
+                _buildSubSection(
+                  'Diet Recommendations',
+                  report.dietRecommendations,
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (report.exerciseGuidelines.isNotEmpty) ...[
+                _buildSubSection(
+                  'Exercise Guidelines',
+                  report.exerciseGuidelines,
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (report.restAdvice.isNotEmpty)
+                _buildSubSection('Rest & Recovery', report.restAdvice),
+            ],
+          ),
+
+        const SizedBox(height: 16),
+
+        // Specialist Recommendation Section
+        if (report.specialist.type.isNotEmpty)
+          _buildExpandableSection(
+            title: 'Specialist Recommendation',
+            icon: Icons.local_hospital,
+            iconColor: const Color(0xFF9C27B0),
+            children: [
+              _buildInfoRow('Specialist Type', report.specialist.type),
+              const SizedBox(height: 8),
+              _buildInfoRow('Expertise', report.specialist.expertise),
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                'Urgency',
+                report.specialist.urgency,
+                labelColor: _getUrgencyColor(report.specialist.urgency),
+              ),
+              if (report.nearbyFacilities.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildSubSection('Recommended Facilities', []),
+                const SizedBox(height: 8),
+                ...report.nearbyFacilities.map(
+                  (facility) => _buildFacilityCard(facility),
+                ),
+              ],
+            ],
+          ),
+
+        const SizedBox(height: 16),
+
+        // Warning Signs Section
+        if (report.redFlags.isNotEmpty || report.emergencySymptoms.isNotEmpty)
+          _buildWarningSection(
+            title: 'Warning Signs',
+            icon: Icons.warning_amber,
+            redFlags: report.redFlags,
+            emergencySymptoms: report.emergencySymptoms,
+          ),
+
+        const SizedBox(height: 16),
+
+        // Follow-up Section
+        if (report.followUpTimeline.isNotEmpty ||
+            report.followUpSchedule.isNotEmpty)
+          _buildExpandableSection(
+            title: 'Follow-up Schedule',
+            icon: Icons.event_note,
+            iconColor: const Color(0xFF00BCD4),
+            children: [
+              if (report.followUpTimeline.isNotEmpty) ...[
+                _buildInfoRow('Timeline', report.followUpTimeline),
+                const SizedBox(height: 12),
+              ],
+              if (report.followUpSchedule.isNotEmpty)
+                _buildSubSection('Schedule', report.followUpSchedule),
+            ],
+          ),
+
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildExpandableSection({
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required List<Widget> children,
+  }) {
+    return Card(
+      color: const Color(0xFF2C2C2C),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          leading: Icon(icon, color: iconColor, size: 24),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          iconColor: Colors.white70,
+          collapsedIconColor: Colors.white70,
+          children: children,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWarningSection({
+    required String title,
+    required IconData icon,
+    required List<String> redFlags,
+    required List<String> emergencySymptoms,
+  }) {
+    return Card(
+      color: const Color(0xFFDC143C).withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: const Color(0xFFDC143C).withOpacity(0.5),
+          width: 2,
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          leading: Icon(icon, color: const Color(0xFFDC143C), size: 24),
+          title: const Text(
+            'Warning Signs',
+            style: TextStyle(
+              color: Color(0xFFDC143C),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          iconColor: const Color(0xFFDC143C),
+          collapsedIconColor: const Color(0xFFDC143C),
+          children: [
+            if (redFlags.isNotEmpty) ...[
+              _buildSubSection(
+                'Red Flags',
+                redFlags,
+                iconColor: const Color(0xFFDC143C),
+              ),
+              if (emergencySymptoms.isNotEmpty) const SizedBox(height: 16),
+            ],
+            if (emergencySymptoms.isNotEmpty)
+              _buildSubSection(
+                'Emergency Symptoms - Seek Immediate Care',
+                emergencySymptoms,
+                iconColor: const Color(0xFFFF5252),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubSection(
+    String title,
+    List<String> items, {
+    Color? iconColor,
+  }) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...items.map(
+          (item) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Icon(
+                    Icons.circle,
+                    size: 6,
+                    color: iconColor ?? const Color(0xFF4CAF50),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    item,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(
+    String label,
+    String value, {
+    bool bold = false,
+    Color? labelColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label: ',
+          style: TextStyle(
+            color: labelColor ?? Colors.white70,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMedicationCard(medication) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.medication, color: Color(0xFF4CAF50), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  medication.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildMedicationDetail('Dosage', medication.dosage),
+          _buildMedicationDetail('Frequency', medication.frequency),
+          _buildMedicationDetail('Duration', medication.duration),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMedicationDetail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMedicationDisclaimer() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF9800).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFFFF9800).withOpacity(0.5),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: Color(0xFFFF9800),
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Do not consume these medications before consulting with a qualified healthcare expert. This is AI-generated advice for informational purposes only.',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.85),
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFacilityCard(facility) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF9C27B0).withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _getFacilityIcon(facility.type),
+                color: const Color(0xFF9C27B0),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  facility.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (facility.address.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.location_on, color: Colors.white54, size: 16),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    facility.address,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (facility.specialization.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(
+                  Icons.medical_services,
+                  color: Colors.white54,
+                  size: 16,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    facility.specialization,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (facility.phone.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.phone, color: Colors.white54, size: 16),
+                const SizedBox(width: 4),
+                Text(
+                  facility.phone,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  IconData _getFacilityIcon(facilityType) {
+    final type = facilityType.toString().toLowerCase();
+    if (type.contains('hospital')) return Icons.local_hospital;
+    if (type.contains('clinic')) return Icons.local_pharmacy;
+    if (type.contains('emergency')) return Icons.emergency;
+    return Icons.medical_services;
+  }
+
+  Color _getUrgencyColor(String urgency) {
+    final lower = urgency.toLowerCase();
+    if (lower.contains('immediate') || lower.contains('urgent')) {
+      return const Color(0xFFFF5252);
+    } else if (lower.contains('soon')) {
+      return const Color(0xFFFF9800);
+    }
+    return const Color(0xFF4CAF50);
+  }
+
+  Widget _buildAIDisclaimer(String customDisclaimer) {
+    return Card(
+      color: const Color(0xFFDC143C).withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: const Color(0xFFDC143C).withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.info_outline, color: Color(0xFFDC143C), size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'AI-Generated Health Report',
+                    style: TextStyle(
+                      color: Color(0xFFDC143C),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    customDisclaimer,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

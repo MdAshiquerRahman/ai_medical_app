@@ -5,6 +5,7 @@ class UnitToggleButton extends StatelessWidget {
   final String unit2;
   final String selectedUnit;
   final ValueChanged<String> onUnitChanged;
+  final bool enabled;
 
   const UnitToggleButton({
     super.key,
@@ -12,6 +13,7 @@ class UnitToggleButton extends StatelessWidget {
     required this.unit2,
     required this.selectedUnit,
     required this.onUnitChanged,
+    this.enabled = true,
   });
 
   @override
@@ -36,7 +38,7 @@ class UnitToggleButton extends StatelessWidget {
   Widget _buildUnitButton(String unit) {
     final isSelected = selectedUnit == unit;
     return InkWell(
-      onTap: () => onUnitChanged(unit),
+      onTap: enabled ? () => onUnitChanged(unit) : null,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -47,7 +49,9 @@ class UnitToggleButton extends StatelessWidget {
         child: Text(
           unit,
           style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFFB0B0B0),
+            color: enabled
+                ? (isSelected ? Colors.white : const Color(0xFFB0B0B0))
+                : const Color(0xFF505050),
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             fontSize: 14,
           ),

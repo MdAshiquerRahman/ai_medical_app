@@ -417,6 +417,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
           hint: 'Enter your age',
           controller: _ageController,
           isRequired: true,
+          enabled: !_isSubmitting,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           validator: PatientFormValidator.validateAge,
@@ -468,11 +469,13 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
                           DropdownMenuItem(value: gender, child: Text(gender)),
                     )
                     .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _selectedGender = value);
-                  }
-                },
+                onChanged: _isSubmitting
+                    ? null
+                    : (value) {
+                        if (value != null) {
+                          setState(() => _selectedGender = value);
+                        }
+                      },
               ),
             ),
           ],
@@ -490,6 +493,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
                 hint: 'Enter weight',
                 controller: _weightController,
                 isRequired: true,
+                enabled: !_isSubmitting,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
@@ -507,6 +511,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
                 unit1: 'kg',
                 unit2: 'lbs',
                 selectedUnit: _weightUnit,
+                enabled: !_isSubmitting,
                 onUnitChanged: (unit) => setState(() => _weightUnit = unit),
               ),
             ),
@@ -527,6 +532,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
                     : 'Enter feet (e.g., 5.5 for 5\'6")',
                 controller: _heightController,
                 isRequired: true,
+                enabled: !_isSubmitting,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
@@ -544,6 +550,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
                 unit1: 'cm',
                 unit2: 'ft',
                 selectedUnit: _heightUnit,
+                enabled: !_isSubmitting,
                 onUnitChanged: (unit) => setState(() => _heightUnit = unit),
               ),
             ),
@@ -557,6 +564,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
           hint: 'Describe your symptoms in detail...',
           controller: _symptomsController,
           isRequired: true,
+          enabled: !_isSubmitting,
           maxLines: 4,
           maxLength: 500,
           keyboardType: TextInputType.multiline,
@@ -570,6 +578,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
           hint: 'Enter your city',
           controller: _cityController,
           isRequired: true,
+          enabled: !_isSubmitting,
           validator: PatientFormValidator.validateCity,
         ),
         const SizedBox(height: 20),
@@ -579,6 +588,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
           hint: 'Enter your country',
           controller: _countryController,
           isRequired: true,
+          enabled: !_isSubmitting,
           validator: PatientFormValidator.validateCountry,
         ),
       ],
@@ -590,8 +600,10 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         InkWell(
-          onTap: () =>
-              setState(() => _showOptionalFields = !_showOptionalFields),
+          onTap: _isSubmitting
+              ? null
+              : () =>
+                    setState(() => _showOptionalFields = !_showOptionalFields),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             decoration: BoxDecoration(
@@ -649,6 +661,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
                 label: 'Systolic BP',
                 hint: 'e.g., 120',
                 controller: _systolicBPController,
+                enabled: !_isSubmitting,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator: PatientFormValidator.validateSystolicBP,
@@ -667,6 +680,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
                 label: 'Diastolic BP',
                 hint: 'e.g., 80',
                 controller: _diastolicBPController,
+                enabled: !_isSubmitting,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator: PatientFormValidator.validateDiastolicBP,
@@ -693,6 +707,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
                 label: 'Body Temperature',
                 hint: 'Enter temperature',
                 controller: _temperatureController,
+                enabled: !_isSubmitting,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
@@ -712,6 +727,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
                 unit1: '°C',
                 unit2: '°F',
                 selectedUnit: _temperatureUnit == 'C' ? '°C' : '°F',
+                enabled: !_isSubmitting,
                 onUnitChanged: (unit) =>
                     setState(() => _temperatureUnit = unit == '°C' ? 'C' : 'F'),
               ),
@@ -725,6 +741,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
           label: 'Heart Rate',
           hint: 'Enter heart rate',
           controller: _heartRateController,
+          enabled: !_isSubmitting,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           validator: PatientFormValidator.validateHeartRate,
@@ -743,6 +760,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
           label: 'Medical History',
           hint: 'Any relevant medical history...',
           controller: _medicalHistoryController,
+          enabled: !_isSubmitting,
           maxLines: 4,
           maxLength: 1000,
           keyboardType: TextInputType.multiline,
@@ -755,6 +773,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
           label: 'Known Allergies',
           hint: 'List any allergies to medications or foods...',
           controller: _allergiesController,
+          enabled: !_isSubmitting,
           maxLines: 3,
           keyboardType: TextInputType.multiline,
         ),
@@ -765,6 +784,7 @@ class _PatientInfoFormScreenState extends State<PatientInfoFormScreen> {
           label: 'Current Medications',
           hint: 'List any medications you are currently taking...',
           controller: _medicationsController,
+          enabled: !_isSubmitting,
           maxLines: 3,
           keyboardType: TextInputType.multiline,
         ),
