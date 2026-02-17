@@ -114,6 +114,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           diagnosisResult: report.diagnosisResult,
           patientInfo: report.patientInfo,
           healthReport: report.healthReport,
+          showActionButtons: false,
         ),
       ),
     );
