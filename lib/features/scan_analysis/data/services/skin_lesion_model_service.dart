@@ -14,20 +14,20 @@ class SkinLesionModelService implements MLModelService {
   Interpreter? _interpreter;
 
   SkinLesionModelService({SkinLesionPreprocessor? preprocessor})
-      : _preprocessor = preprocessor ?? SkinLesionPreprocessor();
+    : _preprocessor = preprocessor ?? SkinLesionPreprocessor();
 
   @override
   ScanType get scanType => ScanType.skinLesion;
 
   @override
   ModelConfig get config => const ModelConfig(
-        modelPath: MLModelConstants.skinLesionModelPath,
-        classLabels: MLModelConstants.skinLesionClasses,
-        inputWidth: MLModelConstants.defaultInputSize,
-        inputHeight: MLModelConstants.defaultInputSize,
-        inputChannels: MLModelConstants.defaultChannels,
-        batchSize: MLModelConstants.skinLesionBatchSize,
-      );
+    modelPath: MLModelConstants.skinLesionModelPath,
+    classLabels: MLModelConstants.skinLesionClasses,
+    inputWidth: MLModelConstants.skinLesionInputSize,
+    inputHeight: MLModelConstants.skinLesionInputSize,
+    inputChannels: MLModelConstants.defaultChannels,
+    batchSize: MLModelConstants.skinLesionBatchSize,
+  );
 
   @override
   bool get isModelLoaded => _interpreter != null;
