@@ -47,7 +47,7 @@ class MLModelConstants {
   static const int defaultChannels = 3;
 
   static const int chestXRayBatchSize = 16;
-  static const int mriBatchSize = 16;
-  static const int chestCTScanBatchSize = 16;
-  static const int skinLesionBatchSize = 16;
+  static const int mriBatchSize = 1;
+  static const int chestCTScanBatchSize = 1;
+  static const int skinLesionBatchSize = 1;
 }
