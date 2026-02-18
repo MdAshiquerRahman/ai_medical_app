@@ -27,17 +27,10 @@ class ChestCTScanPreprocessor implements ImagePreprocessor {
         config.batchSize,
         (b) => List.generate(
           config.inputHeight,
-          (y) => List.generate(
-            config.inputWidth,
-            (x) {
-              final pixel = sharpenedImage.getPixel(x, y);
-              return [
-                pixel.r.toDouble() / 255.0,
-                pixel.g.toDouble() / 255.0,
-                pixel.b.toDouble() / 255.0,
-              ];
-            },
-          ),
+          (y) => List.generate(config.inputWidth, (x) {
+            final pixel = sharpenedImage.getPixel(x, y);
+            return [pixel.r.toDouble(), pixel.g.toDouble(), pixel.b.toDouble()];
+          }),
         ),
       );
 
@@ -61,9 +54,15 @@ class ChestCTScanPreprocessor implements ImagePreprocessor {
         final right = image.getPixel(x + 1, y);
 
         // Apply kernel: 5*center - top - bottom - left - right
-        final r = (5 * center.r - top.r - bottom.r - left.r - right.r).clamp(0, 255).toInt();
-        final g = (5 * center.g - top.g - bottom.g - left.g - right.g).clamp(0, 255).toInt();
-        final b = (5 * center.b - top.b - bottom.b - left.b - right.b).clamp(0, 255).toInt();
+        final r = (5 * center.r - top.r - bottom.r - left.r - right.r)
+            .clamp(0, 255)
+            .toInt();
+        final g = (5 * center.g - top.g - bottom.g - left.g - right.g)
+            .clamp(0, 255)
+            .toInt();
+        final b = (5 * center.b - top.b - bottom.b - left.b - right.b)
+            .clamp(0, 255)
+            .toInt();
 
         sharpened.setPixelRgb(x, y, r, g, b);
       }
