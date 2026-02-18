@@ -25,17 +25,10 @@ class ChestXRayPreprocessor implements ImagePreprocessor {
         config.batchSize,
         (b) => List.generate(
           config.inputHeight,
-          (y) => List.generate(
-            config.inputWidth,
-            (x) {
-              final pixel = resizedImage.getPixel(x, y);
-              return [
-                pixel.r.toDouble() / 255.0,
-                pixel.g.toDouble() / 255.0,
-                pixel.b.toDouble() / 255.0,
-              ];
-            },
-          ),
+          (y) => List.generate(config.inputWidth, (x) {
+            final pixel = resizedImage.getPixel(x, y);
+            return [pixel.r.toDouble(), pixel.g.toDouble(), pixel.b.toDouble()];
+          }),
         ),
       );
 
